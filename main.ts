@@ -129,19 +129,15 @@ function run(p, inp) {
         M[addr] = v;
         break;
       }
-      case 0x50: { // PRINT decimal, no newline; over the limit writes nothing
-        const v = D[sp - 1];
-        let u = v < 0 ? -v : v; // exact: |v| <= 2147483648, a safe float
-        let len = v < 0 ? 1 : 0;
-        for (let t = u; t >= 10; t = (t / 10) | 0) len++;
-        len++;
-        if (ol + len > 65536) return end(11);
-        sp--;
-        let p = ol + len;
-        while (u >= 10) { out[--p] = 48 + (u % 10); u = (u / 10) | 0; }
-        out[--p] = 48 + u;
+      case 0x50: {
+        let v = D[--sp], u = v < 0 ? -v : v, n = 1, d = 0;
+        for (let t = u; t >= 10; t = (t / 10) | 0) n++;
+        if (v < 0) n++;
+        if (ol + n > 65536) return end(11);
+        d = ol + n;
         if (v < 0) out[ol] = 45;
-        ol += len;
+        do { out[--d] = 48 + u % 10; u = (u / 10) | 0; } while (u);
+        ol += n;
         break;
       }
       case 0x51: // PUTC one byte
