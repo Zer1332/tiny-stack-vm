@@ -23,7 +23,6 @@ const POP = new Uint8Array(256);
 const PSH = new Uint8Array(256);
 for (const [op, im, po, pu] of OPS) { IMM[op] = im; POP[op] = po; PSH[op] = pu; }
 
-const enc = new TextEncoder();
 
 // Runs one program on its input. Returns { out: Uint8Array, code: number }.
 function run(p, inp) {
@@ -131,11 +130,18 @@ function run(p, inp) {
         break;
       }
       case 0x50: { // PRINT decimal, no newline; over the limit writes nothing
-        const bytes = enc.encode(String(D[sp - 1]));
-        if (ol + bytes.length > 65536) return end(11);
+        const v = D[sp - 1];
+        let u = v < 0 ? -v : v; // exact: |v| <= 2147483648, a safe float
+        let len = v < 0 ? 1 : 0;
+        for (let t = u; t >= 10; t = (t / 10) | 0) len++;
+        len++;
+        if (ol + len > 65536) return end(11);
         sp--;
-        out.set(bytes, ol);
-        ol += bytes.length;
+        let p = ol + len;
+        while (u >= 10) { out[--p] = 48 + (u % 10); u = (u / 10) | 0; }
+        out[--p] = 48 + u;
+        if (v < 0) out[ol] = 45;
+        ol += len;
         break;
       }
       case 0x51: // PUTC one byte
